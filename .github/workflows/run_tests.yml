@@ -13,10 +13,10 @@ jobs:
         shell: bash
     strategy:
       matrix:
-        version: [1.23, 1.24]
-        os: [macos-13, macos-14, ubuntu-latest, ubuntu-24.04-arm, windows-latest]
+        version: [1.24]
+        os: [macos-15-intel, macos-14, ubuntu-latest, ubuntu-24.04-arm, windows-latest]
         include:
-          - os: "macos-13"
+          - os: "macos-15-intel"
             dir: "darwin-amd64"
           - os: "macos-14"
             dir: "darwin-arm64"
@@ -36,6 +36,7 @@ jobs:
         run: |
           cd ${{ matrix.dir }}
           go test
+          go test -tags=debug_bindings,duckdb_arrow
 
   dynamic-lib-tests:
     name: Test Dynamic Libs
@@ -45,10 +46,10 @@ jobs:
         shell: bash
     strategy:
       matrix:
-        version: [1.23, 1.24]
-        os: [macos-13, macos-14, ubuntu-latest, ubuntu-24.04-arm]
+        version: [1.24]
+        os: [macos-15-intel, macos-14, ubuntu-latest, ubuntu-24.04-arm]
         include:
-          - os: "macos-13"
+          - os: "macos-15-intel"
             filename: "libduckdb-osx-universal"
             filepath: "DYLD_LIBRARY_PATH"
           - os: "macos-14"
@@ -58,7 +59,7 @@ jobs:
             filename: "libduckdb-linux-amd64"
             filepath: "LD_LIBRARY_PATH"
           - os: "ubuntu-24.04-arm"
-            filename: "libduckdb-linux-aarch64"
+            filename: "libduckdb-linux-arm64"
             filepath: "LD_LIBRARY_PATH"
       fail-fast: false
     steps:
@@ -70,7 +71,11 @@ jobs:
         run: |
           make test.dynamic.lib FILENAME=${{ matrix.filename }}
           CGO_ENABLED=1 CGO_LDFLAGS="-lduckdb -L${SRCDIR}dynamic-dir" ${{ matrix.filepath }}=${SRCDIR}dynamic-dir go test
+          CGO_ENABLED=1 CGO_LDFLAGS="-lduckdb -L${SRCDIR}dynamic-dir" ${{ matrix.filepath }}=${SRCDIR}dynamic-dir go test -tags=debug_bindings
+          CGO_ENABLED=1 CGO_LDFLAGS="-lduckdb -L${SRCDIR}dynamic-dir" ${{ matrix.filepath }}=${SRCDIR}dynamic-dir go test -tags=debug_bindings,duckdb_arrow
           CGO_ENABLED=1 CGO_LDFLAGS="-L${SRCDIR}dynamic-dir" ${{ matrix.filepath }}=${SRCDIR}dynamic-dir go test -tags=duckdb_use_lib
+          CGO_ENABLED=1 CGO_LDFLAGS="-L${SRCDIR}dynamic-dir" ${{ matrix.filepath }}=${SRCDIR}dynamic-dir go test -tags=duckdb_use_lib,debug_bindings
+          CGO_ENABLED=1 CGO_LDFLAGS="-L${SRCDIR}dynamic-dir" ${{ matrix.filepath }}=${SRCDIR}dynamic-dir go test -tags=duckdb_use_lib,debug_bindings,duckdb_arrow
 
   static-lib-tests:
     name: Test Static Libs
@@ -80,11 +85,11 @@ jobs:
         shell: bash
     strategy:
       matrix:
-        version: [1.23, 1.24]
-        os: [macos-13, macos-14, ubuntu-latest, ubuntu-24.04-arm]
+        version: [1.24]
+        os: [macos-15-intel, macos-14, ubuntu-latest, ubuntu-24.04-arm]
         # FIXME: Archive these into a single libduckdb_static.a (similar to DuckDB's bundle-library target).
         include:
-          - os: "macos-13"
+          - os: "macos-15-intel"
             dir: "darwin-amd64"
             flags: "-lduckdb_static -lautocomplete_extension -lcore_functions_extension -licu_extension -ljson_extension -lparquet_extension -ltpcds_extension -ltpch_extension -lduckdb_fastpforlib -lduckdb_fmt -lduckdb_fsst -lduckdb_hyperloglog -lduckdb_mbedtls -lduckdb_miniz -lduckdb_pg_query -lduckdb_re2 -lduckdb_skiplistlib -lduckdb_utf8proc -lduckdb_yyjson -lduckdb_zstd -lc++"
           - os: "macos-14"
@@ -105,4 +110,8 @@ jobs:
       - name: Test ${{ matrix.dir }}
         run: |
           CGO_ENABLED=1 CPPFLAGS="-DDUCKDB_STATIC_BUILD" CGO_LDFLAGS="${{ matrix.flags }} -L${SRCDIR}${{ matrix.dir }}/" go test
+          CGO_ENABLED=1 CPPFLAGS="-DDUCKDB_STATIC_BUILD" CGO_LDFLAGS="${{ matrix.flags }} -L${SRCDIR}${{ matrix.dir }}/" go test -tags=debug_bindings
+          CGO_ENABLED=1 CPPFLAGS="-DDUCKDB_STATIC_BUILD" CGO_LDFLAGS="${{ matrix.flags }} -L${SRCDIR}${{ matrix.dir }}/" go test -tags=debug_bindings,duckdb_arrow
           CGO_ENABLED=1 CGO_LDFLAGS="${{ matrix.flags }} -L${SRCDIR}${{ matrix.dir }}/" go test -tags=duckdb_use_static_lib
+          CGO_ENABLED=1 CGO_LDFLAGS="${{ matrix.flags }} -L${SRCDIR}${{ matrix.dir }}/" go test -tags=duckdb_use_static_lib,debug_bindings
+          CGO_ENABLED=1 CGO_LDFLAGS="${{ matrix.flags }} -L${SRCDIR}${{ matrix.dir }}/" go test -tags=duckdb_use_static_lib,debug_bindings,duckdb_arrow
