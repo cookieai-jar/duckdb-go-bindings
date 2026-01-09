@@ -1,4 +1,4 @@
-module github.com/duckdb/duckdb-go-bindings
+module github.com/cookieai-jar/duckdb-go-bindings
 
 go 1.24
 
